@@ -9,8 +9,10 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"math/rand"
 	"os"
 	"path/filepath"
+	"time"
 
 	"github.com/docker/docker/pkg/namesgenerator"
 	mfxsdk "github.com/mainflux/mainflux/pkg/sdk/go"
@@ -118,6 +120,7 @@ var cmdProvision = []cobra.Command{
 				return
 			}
 
+			rand.Seed(time.Now().UnixNano())
 			un := fmt.Sprintf("%s@email.com", namesgenerator.GetRandomName(0))
 			// Create test user
 			user := mfxsdk.User{

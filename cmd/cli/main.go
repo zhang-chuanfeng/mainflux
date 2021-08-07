@@ -63,7 +63,7 @@ func main() {
 	// Root Flags
 	rootCmd.PersistentFlags().StringVarP(
 		&sdkConf.AuthURL,
-		"mainflux-url",
+		"auth-url",
 		"a",
 		sdkConf.AuthURL,
 		"Mainflux Auth URL",
@@ -71,7 +71,7 @@ func main() {
 
 	rootCmd.PersistentFlags().StringVarP(
 		&sdkConf.BootstrapURL,
-		"mainflux-url",
+		"bootstrap-url",
 		"b",
 		sdkConf.BootstrapURL,
 		"Mainflux Bootstrap URL",
@@ -79,15 +79,15 @@ func main() {
 
 	rootCmd.PersistentFlags().StringVarP(
 		&sdkConf.CertsURL,
-		"mainflux-url",
-		"c",
+		"certs-url",
+		"e",
 		sdkConf.CertsURL,
 		"Mainflux Certs URL",
 	)
 
 	rootCmd.PersistentFlags().StringVarP(
 		&sdkConf.ThingsURL,
-		"mainflux-url",
+		"things-url",
 		"t",
 		sdkConf.ThingsURL,
 		"Mainflux Things URL",
@@ -95,7 +95,7 @@ func main() {
 
 	rootCmd.PersistentFlags().StringVarP(
 		&sdkConf.UsersURL,
-		"mainflux-url",
+		"users-url",
 		"u",
 		sdkConf.UsersURL,
 		"Mainflux Users URL",
@@ -104,7 +104,7 @@ func main() {
 	rootCmd.PersistentFlags().StringVarP(
 		&msgContentType,
 		"content-type",
-		"n",
+		"y",
 		msgContentType,
 		"Mainflux message content type",
 	)
@@ -117,17 +117,19 @@ func main() {
 		"Do not check for TLS cert",
 	)
 
-	rootCmd.PersistentFlags().StringVar(
+	rootCmd.PersistentFlags().StringVarP(
 		&cli.ConfigPath,
 		"config",
 		"c",
+		cli.ConfigPath,
 		"Mainflux config path",
 	)
 
-	rootCmd.PersistentFlags().BoolVar(
+	rootCmd.PersistentFlags().BoolVarP(
 		&cli.RawOutput,
 		"raw",
-		false,
+		"r",
+		cli.RawOutput,
 		"Enables raw output mode for easier parsing of output",
 	)
 

@@ -27,7 +27,7 @@ func (sdk mfSDK) CreateUser(u User) (string, error) {
 		return "", err
 	}
 
-	url := fmt.Sprintf("%s/%s", sdk.usersURL, channelsEndpoint)
+	url := fmt.Sprintf("%s/%s", sdk.usersURL, usersEndpoint)
 	resp, err := sdk.client.Post(url, string(CTJSON), bytes.NewReader(data))
 	if err != nil {
 		return "", err

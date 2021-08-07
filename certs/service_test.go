@@ -47,7 +47,7 @@ const (
 	cfgClientTLS    = false
 	cfgServerCert   = ""
 	cfgServerKey    = ""
-	cfgBaseURL      = "http://localhost"
+	cfgCertsURL     = "http://localhost"
 	cfgThingsPrefix = ""
 	cfgJaegerURL    = ""
 	cfgAuthURL      = "localhost:8181"
@@ -65,7 +65,7 @@ func newService(tokens map[string]string) (certs.Service, error) {
 
 	auth := thmocks.NewAuthService(tokens)
 	config := mfsdk.Config{
-		BaseURL: server.URL,
+		CertsURL: server.URL,
 	}
 
 	sdk := mfsdk.NewSDK(config)
