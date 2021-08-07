@@ -24,7 +24,10 @@ import (
 	sdk "github.com/mainflux/mainflux/pkg/sdk/go"
 )
 
-const defPass = "12345678"
+const (
+	defPass      = "12345678"
+	defReaderURL = "http://localhost:8905"
+)
 
 // MfConn - structure describing Mainflux connection set
 type MfConn struct {
@@ -57,7 +60,7 @@ func Provision(conf Config) {
 	msgContentType := string(sdk.CTJSONSenML)
 	sdkConf := sdk.Config{
 		ThingsURL:       conf.Host,
-		ReaderURL:       "http://localhost:8905",
+		ReaderURL:       defReaderURL,
 		MsgContentType:  sdk.ContentType(msgContentType),
 		TLSVerification: false,
 	}

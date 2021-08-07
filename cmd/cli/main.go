@@ -20,6 +20,7 @@ func main() {
 		ThingsURL:       defURL,
 		UsersURL:        defURL,
 		ReaderURL:       defURL,
+		HTTPAdapterURL:  defURL,
 		BootstrapURL:    defURL,
 		CertsURL:        defURL,
 		MsgContentType:  sdk.ContentType(msgContentType),
@@ -99,6 +100,14 @@ func main() {
 		"u",
 		sdkConf.UsersURL,
 		"Mainflux Users URL",
+	)
+
+	rootCmd.PersistentFlags().StringVarP(
+		&sdkConf.HTTPAdapterURL,
+		"http-url",
+		"p",
+		sdkConf.HTTPAdapterURL,
+		"Mainflux message content type",
 	)
 
 	rootCmd.PersistentFlags().StringVarP(
