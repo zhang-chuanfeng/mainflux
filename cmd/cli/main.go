@@ -4,6 +4,7 @@
 package main
 
 import (
+	"fmt"
 	"log"
 
 	"github.com/mainflux/mainflux/cli"
@@ -20,7 +21,7 @@ func main() {
 		ThingsURL:       defURL,
 		UsersURL:        defURL,
 		ReaderURL:       defURL,
-		HTTPAdapterURL:  defURL,
+		HTTPAdapterURL:  fmt.Sprintf("%s/http", defURL),
 		BootstrapURL:    defURL,
 		CertsURL:        defURL,
 		MsgContentType:  sdk.ContentType(msgContentType),

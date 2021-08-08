@@ -21,7 +21,8 @@ func (sdk mfSDK) SendMessage(chanName, msg, token string) error {
 		subtopicPart = fmt.Sprintf("/%s", strings.Replace(chanNameParts[1], ".", "/", -1))
 	}
 
-	url := fmt.Sprintf("%s/http/channels/%s/messages%s", sdk.httpAdapterURL, chanID, subtopicPart)
+	url := fmt.Sprintf("%s/channels/%s/messages%s", sdk.httpAdapterURL, chanID, subtopicPart)
+
 	req, err := http.NewRequest(http.MethodPost, url, strings.NewReader(msg))
 	if err != nil {
 		return err

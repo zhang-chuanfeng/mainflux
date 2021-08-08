@@ -21,9 +21,9 @@ file = "config.toml"
   port = ""
   server_cert = ""
   server_key = ""
-  things_location = "http://localhost:8182"
+  things_url = "http://localhost:8182"
   tls = true
-  users_location = ""
+  users_url = ""
 
 [[things]]
   name = "thing"
