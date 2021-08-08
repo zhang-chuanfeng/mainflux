@@ -238,7 +238,7 @@ func TestAdd(t *testing.T) {
 			auth:        validToken,
 			contentType: contentType,
 			status:      http.StatusCreated,
-			location:    "/things/configs/1",
+			location:    "/configs/1",
 		},
 		{
 			desc:        "add a config with wring content type",
@@ -309,11 +309,14 @@ func TestAdd(t *testing.T) {
 		req := testRequest{
 			client:      bs.Client(),
 			method:      http.MethodPost,
-			url:         fmt.Sprintf("%s/things/configs", bs.URL),
+			url:         fmt.Sprintf("%s/configs", bs.URL),
 			contentType: tc.contentType,
 			token:       tc.auth,
 			body:        strings.NewReader(tc.req),
 		}
+
+		fmt.Println(req.url)
+
 		res, err := req.make()
 		assert.Nil(t, err, fmt.Sprintf("%s: unexpected error %s", tc.desc, err))
 
@@ -400,7 +403,7 @@ func TestView(t *testing.T) {
 		req := testRequest{
 			client: bs.Client(),
 			method: http.MethodGet,
-			url:    fmt.Sprintf("%s/things/configs/%s", bs.URL, tc.id),
+			url:    fmt.Sprintf("%s/configs/%s", bs.URL, tc.id),
 			token:  tc.auth,
 		}
 		res, err := req.make()
@@ -504,7 +507,7 @@ func TestUpdate(t *testing.T) {
 		req := testRequest{
 			client:      bs.Client(),
 			method:      http.MethodPut,
-			url:         fmt.Sprintf("%s/things/configs/%s", bs.URL, tc.id),
+			url:         fmt.Sprintf("%s/configs/%s", bs.URL, tc.id),
 			contentType: tc.contentType,
 			token:       tc.auth,
 			body:        strings.NewReader(tc.req),
@@ -598,7 +601,7 @@ func TestUpdateCert(t *testing.T) {
 		req := testRequest{
 			client:      bs.Client(),
 			method:      http.MethodPatch,
-			url:         fmt.Sprintf("%s/things/configs/certs/%s", bs.URL, tc.id),
+			url:         fmt.Sprintf("%s/configs/certs/%s", bs.URL, tc.id),
 			contentType: tc.contentType,
 			token:       tc.auth,
 			body:        strings.NewReader(tc.req),
@@ -706,7 +709,7 @@ func TestUpdateConnections(t *testing.T) {
 		req := testRequest{
 			client:      bs.Client(),
 			method:      http.MethodPut,
-			url:         fmt.Sprintf("%s/things/configs/connections/%s", bs.URL, tc.id),
+			url:         fmt.Sprintf("%s/configs/connections/%s", bs.URL, tc.id),
 			contentType: tc.contentType,
 			token:       tc.auth,
 			body:        strings.NewReader(tc.req),
@@ -1023,7 +1026,7 @@ func TestRemove(t *testing.T) {
 		req := testRequest{
 			client: bs.Client(),
 			method: http.MethodDelete,
-			url:    fmt.Sprintf("%s/things/configs/%s", bs.URL, tc.id),
+			url:    fmt.Sprintf("%s/configs/%s", bs.URL, tc.id),
 			token:  tc.auth,
 		}
 		res, err := req.make()
