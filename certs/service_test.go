@@ -60,8 +60,8 @@ const (
 )
 
 func newService(tokens map[string]string) (certs.Service, error) {
-	users := bsmocks.NewAuthClient(map[string]string{token: email})
-	server := newThingsServer(newThingsService(users))
+	ac := bsmocks.NewAuthClient(map[string]string{token: email})
+	server := newThingsServer(newThingsService(ac))
 
 	auth := thmocks.NewAuthService(tokens)
 	config := mfsdk.Config{

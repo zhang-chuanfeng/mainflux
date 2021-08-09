@@ -49,8 +49,6 @@ func ParseConfig() {
 		return
 	}
 
-	print(ConfigPath)
-
 	if _, err := os.Stat(ConfigPath); os.IsNotExist(err) {
 		errConfigNotFound := errors.Wrap(errors.New("config file was not found"), err)
 		logError(errConfigNotFound)

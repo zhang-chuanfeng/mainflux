@@ -782,7 +782,6 @@ func TestDisconnectThingsHandler(t *testing.T) {
 	}
 
 	for _, tc := range cases {
-		fmt.Printf("test")
 		err := svc.DisconnectThingHandler(context.Background(), tc.channelID, tc.thingID)
 		assert.True(t, errors.Contains(err, tc.err), fmt.Sprintf("%s: expected %s got %s\n", tc.desc, tc.err, err))
 	}

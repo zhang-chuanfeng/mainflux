@@ -315,8 +315,6 @@ func TestAdd(t *testing.T) {
 			body:        strings.NewReader(tc.req),
 		}
 
-		fmt.Println(req.url)
-
 		res, err := req.make()
 		assert.Nil(t, err, fmt.Sprintf("%s: unexpected error %s", tc.desc, err))
 
