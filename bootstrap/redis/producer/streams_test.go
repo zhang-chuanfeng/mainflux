@@ -65,7 +65,7 @@ var (
 func newService(auth mainflux.AuthServiceClient, url string) bootstrap.Service {
 	configs := mocks.NewConfigsRepository()
 	config := mfsdk.Config{
-		BootstrapURL: url,
+		ThingsURL: url,
 	}
 
 	sdk := mfsdk.NewSDK(config)
