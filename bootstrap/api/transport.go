@@ -82,13 +82,13 @@ func MakeHandler(svc bootstrap.Service, reader bootstrap.ConfigReader) http.Hand
 		encodeResponse,
 		opts...))
 
-	r.Get("bootstrap/:external_id", kithttp.NewServer(
+	r.Get("/bootstrap/:external_id", kithttp.NewServer(
 		bootstrapEndpoint(svc, reader, false),
 		decodeBootstrapRequest,
 		encodeResponse,
 		opts...))
 
-	r.Get("bootstrap/secure/:external_id", kithttp.NewServer(
+	r.Get("/bootstrap/secure/:external_id", kithttp.NewServer(
 		bootstrapEndpoint(svc, reader, true),
 		decodeBootstrapRequest,
 		encodeSecureRes,

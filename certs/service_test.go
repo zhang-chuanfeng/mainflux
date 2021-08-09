@@ -65,7 +65,7 @@ func newService(tokens map[string]string) (certs.Service, error) {
 
 	auth := thmocks.NewAuthService(tokens)
 	config := mfsdk.Config{
-		CertsURL: server.URL,
+		ThingsURL: server.URL,
 	}
 
 	sdk := mfsdk.NewSDK(config)

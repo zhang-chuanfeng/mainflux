@@ -160,7 +160,7 @@ func dec(in []byte) ([]byte, error) {
 func newService(auth mainflux.AuthServiceClient, url string) bootstrap.Service {
 	things := mocks.NewConfigsRepository()
 	config := mfsdk.Config{
-		BootstrapURL: url,
+		ThingsURL: url,
 	}
 
 	sdk := mfsdk.NewSDK(config)
@@ -730,7 +730,7 @@ func TestList(t *testing.T) {
 	ts := newThingsServer(newThingsService(users))
 	svc := newService(users, ts.URL)
 	bs := newBootstrapServer(svc)
-	path := fmt.Sprintf("%s/%s", bs.URL, "things/configs")
+	path := fmt.Sprintf("%s/%s", bs.URL, "configs")
 
 	c := newConfig([]bootstrap.Channel{bootstrap.Channel{ID: "1"}})
 
@@ -1145,7 +1145,7 @@ func TestBootstrap(t *testing.T) {
 		req := testRequest{
 			client: bs.Client(),
 			method: http.MethodGet,
-			url:    fmt.Sprintf("%s/things/bootstrap/%s", bs.URL, tc.externalID),
+			url:    fmt.Sprintf("%s/bootstrap/%s", bs.URL, tc.externalID),
 			token:  tc.externalKey,
 		}
 		res, err := req.make()
@@ -1256,7 +1256,7 @@ func TestChangeState(t *testing.T) {
 		req := testRequest{
 			client:      bs.Client(),
 			method:      http.MethodPut,
-			url:         fmt.Sprintf("%s/things/state/%s", bs.URL, tc.id),
+			url:         fmt.Sprintf("%s/state/%s", bs.URL, tc.id),
 			token:       tc.auth,
 			contentType: tc.contentType,
 			body:        strings.NewReader(tc.state),
