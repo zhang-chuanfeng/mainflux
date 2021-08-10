@@ -16,13 +16,13 @@ file = "config.toml"
   mf_certs_url = "http://localhost/certs"
   mf_pass = ""
   mf_user = ""
-  mf_white_list = "http://localhost:8202/things/state"
+  mf_white_list = "http://localhost:8202/state"
   mqtt_url = ""
   port = ""
   server_cert = ""
   server_key = ""
   things_url = "http://localhost:8182"
-  tls = true
+  tls = false
   users_url = ""
 
 [[things]]
