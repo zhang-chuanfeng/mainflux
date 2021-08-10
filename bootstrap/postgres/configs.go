@@ -73,24 +73,22 @@ func (cr configRepository) Save(cfg bootstrap.Config, chsConnIDs []string) (stri
 		}
 
 		cr.rollback("Failed to insert a Config", tx)
-
 		return "", errors.Wrap(errSaveDB, e)
 	}
 
 	if err := insertChannels(cfg.Owner, cfg.MFChannels, tx); err != nil {
 		cr.rollback("Failed to insert Channels", tx)
-
 		return "", errors.Wrap(errSaveChannels, err)
 	}
 
 	if err := insertConnections(cfg, chsConnIDs, tx); err != nil {
 		cr.rollback("Failed to insert connections", tx)
-
 		return "", errors.Wrap(errSaveConnections, err)
 	}
 
 	if err := tx.Commit(); err != nil {
 		cr.rollback("Failed to commit Config save", tx)
+		return "", err
 	}
 
 	return cfg.MFThing, nil
@@ -312,6 +310,7 @@ func (cr configRepository) UpdateConnections(owner, id string, channels []bootst
 
 	if err := tx.Commit(); err != nil {
 		cr.rollback("Failed to commit Config update", tx)
+		return err
 	}
 
 	return nil
