@@ -728,7 +728,7 @@ func TestList(t *testing.T) {
 	ts := newThingsServer(newThingsService(auth))
 	svc := newService(auth, ts.URL)
 	bs := newBootstrapServer(svc)
-	path := fmt.Sprintf("%s/%s", bs.URL, "configs")
+	path := fmt.Sprintf("%s/%s", bs.URL, "things/configs")
 
 	c := newConfig([]bootstrap.Channel{bootstrap.Channel{ID: "1"}})
 
