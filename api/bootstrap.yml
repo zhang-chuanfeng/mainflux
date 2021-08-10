@@ -5,7 +5,7 @@ info:
   version: "1.0.0"
 
 paths:
-  /configs:
+  /things/configs:
     post:
       summary: Adds new config
       description: |
@@ -52,7 +52,7 @@ paths:
           description: Missing or invalid access token provided.
         '500':
           $ref: "#/components/responses/ServiceError"
-  /configs/{configId}:
+  /things/configs/{configId}:
     get:
       summary: Retrieves config info (with channels).
       tags:
@@ -114,7 +114,7 @@ paths:
           description: Missing or invalid access token provided.
         '500':
           $ref: "#/components/responses/ServiceError"
-  /configs/certs/{configId}:
+  /things/configs/certs/{configId}:
     patch:
       summary: Updates certs
       description: |
@@ -140,7 +140,7 @@ paths:
           description: Missing or invalid content type.
         '500':
           $ref: "#/components/responses/ServiceError"
-  /configs/connections/{configId}:
+  /things/configs/connections/{configId}:
     put:
       summary: Updates channels the thing is connected to
       description: |
@@ -491,7 +491,7 @@ components:
            text/plain:
              schema:
                type: string
-               description: Created configuration's relative URL (i.e. /configs/{configId}).
+               description: Created configuration's relative URL (i.e. /things/configs/{configId}).
     ConfigListRes:
       description: Data retrieved. Configs from this list don't contain channels.
       content:

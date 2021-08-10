@@ -40,63 +40,63 @@ func MakeHandler(svc bootstrap.Service, reader bootstrap.ConfigReader) http.Hand
 	}
 	r := bone.New()
 
-	r.Get("/configs", kithttp.NewServer(
-		listEndpoint(svc),
-		decodeListRequest,
-		encodeResponse,
-		opts...))
-
-	r.Post("/configs", kithttp.NewServer(
+	r.Post("/things/configs", kithttp.NewServer(
 		addEndpoint(svc),
 		decodeAddRequest,
 		encodeResponse,
 		opts...))
 
-	r.Get("/configs/:id", kithttp.NewServer(
+	r.Get("/things/configs/:id", kithttp.NewServer(
 		viewEndpoint(svc),
 		decodeEntityRequest,
 		encodeResponse,
 		opts...))
 
-	r.Put("/configs/:id", kithttp.NewServer(
+	r.Put("/things/configs/:id", kithttp.NewServer(
 		updateEndpoint(svc),
 		decodeUpdateRequest,
 		encodeResponse,
 		opts...))
 
-	r.Delete("/configs/:id", kithttp.NewServer(
-		removeEndpoint(svc),
-		decodeEntityRequest,
-		encodeResponse,
-		opts...))
-
-	r.Patch("/configs/certs/:id", kithttp.NewServer(
+	r.Patch("/things/configs/certs/:id", kithttp.NewServer(
 		updateCertEndpoint(svc),
 		decodeUpdateCertRequest,
 		encodeResponse,
 		opts...))
 
-	r.Put("/configs/connections/:id", kithttp.NewServer(
+	r.Put("/things/configs/connections/:id", kithttp.NewServer(
 		updateConnEndpoint(svc),
 		decodeUpdateConnRequest,
 		encodeResponse,
 		opts...))
 
-	r.Get("/bootstrap/:external_id", kithttp.NewServer(
+	r.Get("/things/configs", kithttp.NewServer(
+		listEndpoint(svc),
+		decodeListRequest,
+		encodeResponse,
+		opts...))
+
+	r.Get("/things/bootstrap/:external_id", kithttp.NewServer(
 		bootstrapEndpoint(svc, reader, false),
 		decodeBootstrapRequest,
 		encodeResponse,
 		opts...))
 
-	r.Get("/bootstrap/secure/:external_id", kithttp.NewServer(
+	r.Get("/things/bootstrap/secure/:external_id", kithttp.NewServer(
 		bootstrapEndpoint(svc, reader, true),
 		decodeBootstrapRequest,
 		encodeSecureRes,
 		opts...))
 
-	r.Put("/state/:id", kithttp.NewServer(
+	r.Put("/things/state/:id", kithttp.NewServer(
 		stateEndpoint(svc),
 		decodeStateRequest,
+		encodeResponse,
+		opts...))
+
+	r.Delete("/things/configs/:id", kithttp.NewServer(
+		removeEndpoint(svc),
+		decodeEntityRequest,
 		encodeResponse,
 		opts...))
 
