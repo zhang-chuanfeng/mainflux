@@ -22,8 +22,6 @@ const (
 	CTBinary ContentType = "application/octet-stream"
 )
 
-const minPassLen = 8
-
 var (
 	// ErrUnauthorized indicates that entity creation failed.
 	ErrUnauthorized = errors.New("unauthorized, missing credentials")

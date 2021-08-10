@@ -19,13 +19,11 @@ import (
 	"github.com/spf13/cobra"
 )
 
-var errMalformedCSV = errors.New("malformed CSV")
-
 const jsonExt = ".json"
 const csvExt = ".csv"
 
 var cmdProvision = []cobra.Command{
-	cobra.Command{
+	{
 		Use:   "things",
 		Short: "things <things_file> <user_token>",
 		Long:  `Bulk create things`,
@@ -55,7 +53,7 @@ var cmdProvision = []cobra.Command{
 			logJSON(things)
 		},
 	},
-	cobra.Command{
+	{
 		Use:   "channels",
 		Short: "channels <channels_file> <user_token>",
 		Long:  `Bulk create channels`,
@@ -80,7 +78,7 @@ var cmdProvision = []cobra.Command{
 			logJSON(channels)
 		},
 	},
-	cobra.Command{
+	{
 		Use:   "connect",
 		Short: "connect <connections_file> <user_token>",
 		Long:  `Bulk connect things to channels`,
@@ -103,7 +101,7 @@ var cmdProvision = []cobra.Command{
 			}
 		},
 	},
-	cobra.Command{
+	{
 		Use:   "test",
 		Short: "test",
 		Long: `Provisions test setup: one test user, two things and two channels. \

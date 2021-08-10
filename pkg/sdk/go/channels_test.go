@@ -205,7 +205,8 @@ func TestChannels(t *testing.T) {
 	mainfluxSDK := sdk.NewSDK(sdkConf)
 	for i := 1; i < 101; i++ {
 		ch := sdk.Channel{ID: fmt.Sprintf("%03d", i), Name: "test"}
-		mainfluxSDK.CreateChannel(ch, token)
+		_, err := mainfluxSDK.CreateChannel(ch, token)
+		require.Nil(t, err, fmt.Sprintf("unexpected error: %s", err))
 		channels = append(channels, ch)
 	}
 

@@ -43,15 +43,14 @@ const (
 	key        = "rsa"
 	certNum    = 10
 
-	cfgLogLevel     = "error"
-	cfgClientTLS    = false
-	cfgServerCert   = ""
-	cfgServerKey    = ""
-	cfgCertsURL     = "http://localhost"
-	cfgThingsPrefix = ""
-	cfgJaegerURL    = ""
-	cfgAuthURL      = "localhost:8181"
-	cfgAuthTimeout  = "1s"
+	cfgLogLevel    = "error"
+	cfgClientTLS   = false
+	cfgServerCert  = ""
+	cfgServerKey   = ""
+	cfgCertsURL    = "http://localhost"
+	cfgJaegerURL   = ""
+	cfgAuthURL     = "localhost:8181"
+	cfgAuthTimeout = "1s"
 
 	caPath            = "../docker/ssl/certs/ca.crt"
 	caKeyPath         = "../docker/ssl/certs/ca.key"

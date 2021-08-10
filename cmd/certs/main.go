@@ -85,7 +85,6 @@ const (
 	envServerCert    = "MF_CERTS_SERVER_CERT"
 	envServerKey     = "MF_CERTS_SERVER_KEY"
 	envCertsURL      = "MF_SDK_CERTS_URL"
-	envThingsPrefix  = "MF_SDK_THINGS_PREFIX"
 	envJaegerURL     = "MF_JAEGER_URL"
 	envAuthURL       = "MF_AUTH_GRPC_URL"
 	envAuthTimeout   = "MF_AUTH_GRPC_TIMEOUT"
@@ -108,26 +107,24 @@ var (
 	errPrivateKeyEmpty           = errors.New("private key empty")
 	errPrivateKeyUnsupportedType = errors.New("private key unsupported type")
 	errCertsRemove               = errors.New("failed to remove certificate")
-	errCACertificateDoesntExist  = errors.New("CA certificate doesnt exist")
-	errCAKeyDoesntExist          = errors.New("CA certificate key doesnt exist")
+	errCACertificateNotExist     = errors.New("CA certificate does not exist")
+	errCAKeyNotExist             = errors.New("CA certificate key does not exist")
 )
 
 type config struct {
-	logLevel     string
-	dbConfig     postgres.Config
-	clientTLS    bool
-	encKey       []byte
-	caCerts      string
-	httpPort     string
-	serverCert   string
-	serverKey    string
-	certsURL     string
-	thingsPrefix string
-	jaegerURL    string
-	authURL      string
-	authTimeout  time.Duration
-	// Sign and issue certificates
-	// without 3rd party PKI
+	logLevel    string
+	dbConfig    postgres.Config
+	clientTLS   bool
+	encKey      []byte
+	caCerts     string
+	httpPort    string
+	serverCert  string
+	serverKey   string
+	certsURL    string
+	jaegerURL   string
+	authURL     string
+	authTimeout time.Duration
+	// Sign and issue certificates without 3rd party PKI
 	signCAPath     string
 	signCAKeyPath  string
 	signRSABits    int
@@ -215,17 +212,17 @@ func loadConfig() config {
 	}
 
 	return config{
-		logLevel:     mainflux.Env(envLogLevel, defLogLevel),
-		dbConfig:     dbConfig,
-		clientTLS:    tls,
-		caCerts:      mainflux.Env(envCACerts, defCACerts),
-		httpPort:     mainflux.Env(envPort, defPort),
-		serverCert:   mainflux.Env(envServerCert, defServerCert),
-		serverKey:    mainflux.Env(envServerKey, defServerKey),
-		certsURL:     mainflux.Env(envCertsURL, defCertsURL),
-		jaegerURL:    mainflux.Env(envJaegerURL, defJaegerURL),
-		authURL:      mainflux.Env(envAuthURL, defAuthURL),
-		authTimeout:  authTimeout,
+		logLevel:    mainflux.Env(envLogLevel, defLogLevel),
+		dbConfig:    dbConfig,
+		clientTLS:   tls,
+		caCerts:     mainflux.Env(envCACerts, defCACerts),
+		httpPort:    mainflux.Env(envPort, defPort),
+		serverCert:  mainflux.Env(envServerCert, defServerCert),
+		serverKey:   mainflux.Env(envServerKey, defServerKey),
+		certsURL:    mainflux.Env(envCertsURL, defCertsURL),
+		jaegerURL:   mainflux.Env(envJaegerURL, defJaegerURL),
+		authURL:     mainflux.Env(envAuthURL, defAuthURL),
+		authTimeout: authTimeout,
 
 		signCAKeyPath:  mainflux.Env(envSignCAKey, defSignCAKeyPath),
 		signCAPath:     mainflux.Env(envSignCAPath, defSignCAPath),
@@ -383,11 +380,11 @@ func loadCertificates(conf config) (tls.Certificate, *x509.Certificate, error) {
 	}
 
 	if _, err := os.Stat(conf.signCAPath); os.IsNotExist(err) {
-		return tlsCert, caCert, errCACertificateDoesntExist
+		return tlsCert, caCert, errCACertificateNotExist
 	}
 
 	if _, err := os.Stat(conf.signCAKeyPath); os.IsNotExist(err) {
-		return tlsCert, caCert, errCAKeyDoesntExist
+		return tlsCert, caCert, errCAKeyNotExist
 	}
 
 	tlsCert, err := tls.LoadX509KeyPair(conf.signCAPath, conf.signCAKeyPath)

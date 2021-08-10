@@ -244,9 +244,9 @@ func TestThings(t *testing.T) {
 
 	mainfluxSDK := sdk.NewSDK(sdkConf)
 	for i := 1; i < 101; i++ {
-
 		th := sdk.Thing{ID: fmt.Sprintf("%03d", i), Name: "test_device", Metadata: metadata}
-		mainfluxSDK.CreateThing(th, token)
+		_, err := mainfluxSDK.CreateThing(th, token)
+		require.Nil(t, err, fmt.Sprintf("unexpected error: %s", err))
 		th.Key = fmt.Sprintf("%s%012d", keyPrefix, 2*i)
 		things = append(things, th)
 	}
