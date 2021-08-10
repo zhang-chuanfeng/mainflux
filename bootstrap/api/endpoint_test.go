@@ -730,7 +730,7 @@ func TestList(t *testing.T) {
 	bs := newBootstrapServer(svc)
 	path := fmt.Sprintf("%s/%s", bs.URL, "things/configs")
 
-	c := newConfig([]bootstrap.Channel{bootstrap.Channel{ID: "1"}})
+	c := newConfig([]bootstrap.Channel{{ID: "1"}})
 
 	for i := 0; i < configNum; i++ {
 		c.ExternalID = strconv.Itoa(i)
@@ -978,7 +978,7 @@ func TestRemove(t *testing.T) {
 	svc := newService(auth, ts.URL)
 	bs := newBootstrapServer(svc)
 
-	c := newConfig([]bootstrap.Channel{bootstrap.Channel{ID: "1"}})
+	c := newConfig([]bootstrap.Channel{{ID: "1"}})
 
 	saved, err := svc.Add(context.Background(), validToken, c)
 	require.Nil(t, err, fmt.Sprintf("Saving config expected to succeed: %s.\n", err))
@@ -1040,7 +1040,7 @@ func TestBootstrap(t *testing.T) {
 	svc := newService(auth, ts.URL)
 	bs := newBootstrapServer(svc)
 
-	c := newConfig([]bootstrap.Channel{bootstrap.Channel{ID: "1"}})
+	c := newConfig([]bootstrap.Channel{{ID: "1"}})
 
 	saved, err := svc.Add(context.Background(), validToken, c)
 	require.Nil(t, err, fmt.Sprintf("Saving config expected to succeed: %s.\n", err))
@@ -1168,7 +1168,7 @@ func TestChangeState(t *testing.T) {
 	svc := newService(auth, ts.URL)
 	bs := newBootstrapServer(svc)
 
-	c := newConfig([]bootstrap.Channel{bootstrap.Channel{ID: "1"}})
+	c := newConfig([]bootstrap.Channel{{ID: "1"}})
 
 	saved, err := svc.Add(context.Background(), validToken, c)
 	require.Nil(t, err, fmt.Sprintf("Saving config expected to succeed: %s.\n", err))
