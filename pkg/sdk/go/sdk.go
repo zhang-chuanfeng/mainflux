@@ -4,13 +4,20 @@
 package sdk
 
 import (
+	"bytes"
 	"crypto/tls"
-	"errors"
+	"encoding/json"
+	"fmt"
+	"io/ioutil"
 	"net/http"
+	"net/url"
+	"strconv"
+	"strings"
 	"time"
 
 	"github.com/mainflux/mainflux"
 	"github.com/mainflux/mainflux/internal/apiutil"
+	"github.com/mainflux/mainflux/pkg/errors"
 )
 
 const (
@@ -22,54 +29,6 @@ const (
 
 	// CTBinary represents binary content type.
 	CTBinary ContentType = "application/octet-stream"
-)
-
-var (
-	// ErrFailedCreation indicates that entity creation failed.
-	ErrFailedCreation = errors.New("failed to create entity")
-
-	// ErrFailedUpdate indicates that entity update failed.
-	ErrFailedUpdate = errors.New("failed to update entity")
-
-	// ErrFailedFetch indicates that fetching of entity data failed.
-	ErrFailedFetch = errors.New("failed to fetch entity")
-
-	// ErrFailedRemoval indicates that entity removal failed.
-	ErrFailedRemoval = errors.New("failed to remove entity")
-
-	// ErrFailedConnect indicates that connecting thing to channel failed.
-	ErrFailedConnect = errors.New("failed to connect thing to channel")
-
-	// ErrFailedDisconnect indicates that disconnecting thing from a channel failed.
-	ErrFailedDisconnect = errors.New("failed to disconnect thing from channel")
-
-	// ErrFailedPublish indicates that publishing message failed.
-	ErrFailedPublish = errors.New("failed to publish message")
-
-	// ErrFailedRead indicates that read messages failed.
-	ErrFailedRead = errors.New("failed to read messages")
-
-	// ErrInvalidContentType indicates that non-existent message content type
-	// was passed.
-	ErrInvalidContentType = errors.New("Unknown Content Type")
-
-	// ErrFetchHealth indicates that fetching of health check failed.
-	ErrFetchHealth = errors.New("failed to fetch health check")
-
-	// ErrFailedWhitelist failed to whitelist configs
-	ErrFailedWhitelist = errors.New("failed to whitelist")
-
-	// ErrCerts indicates error fetching certificates.
-	ErrCerts = errors.New("failed to fetch certs data")
-
-	// ErrCertsRemove indicates failure while cleaning up from the Certs service.
-	ErrCertsRemove = errors.New("failed to remove certificate")
-
-	// ErrFailedCertUpdate failed to update certs in bootstrap config
-	ErrFailedCertUpdate = errors.New("failed to update certs in bootstrap config")
-
-	// ErrMemberAdd failed to add member to a group.
-	ErrMemberAdd = errors.New("failed to add member to group")
 )
 
 // ContentType represents all possible content types.
@@ -84,6 +43,18 @@ type User struct {
 	Groups   []string               `json:"groups,omitempty"`
 	Password string                 `json:"password,omitempty"`
 	Metadata map[string]interface{} `json:"metadata,omitempty"`
+}
+type PageMetadata struct {
+	Total        uint64                 `json:"total"`
+	Offset       uint64                 `json:"offset"`
+	Limit        uint64                 `json:"limit"`
+	Level        uint64                 `json:"level,omitempty"`
+	Email        string                 `json:"email,omitempty"`
+	Name         string                 `json:"name,omitempty"`
+	Type         string                 `json:"type,omitempty"`
+	Disconnected bool                   `json:"disconnected,omitempty"`
+	Metadata     map[string]interface{} `json:"metadata,omitempty"`
+	Status       string                 `json:"status,omitempty"`
 }
 
 // Group represents mainflux users group.
@@ -110,12 +81,6 @@ type Channel struct {
 	Metadata map[string]interface{} `json:"metadata,omitempty"`
 }
 
-// Member represents group member.
-type Member struct {
-	ID   string
-	Type string
-}
-
 type Key struct {
 	ID        string
 	Type      uint32
@@ -128,153 +93,165 @@ type Key struct {
 // SDK contains Mainflux API.
 type SDK interface {
 	// CreateUser registers mainflux user.
-	CreateUser(token string, user User) (string, error)
+	CreateUser(user User, token string) (string, errors.SDKError)
 
-	// User returns user object.
-	User(token string) (User, error)
+	// User returns user object by id.
+	User(id, token string) (User, errors.SDKError)
+
+	// Users returns list of users.
+	Users(pm PageMetadata, token string) (UsersPage, errors.SDKError)
 
 	// CreateToken receives credentials and returns user token.
-	CreateToken(user User) (string, error)
+	CreateToken(user User) (string, errors.SDKError)
 
 	// UpdateUser updates existing user.
-	UpdateUser(user User, token string) error
+	UpdateUser(user User, token string) errors.SDKError
 
 	// UpdatePassword updates user password.
-	UpdatePassword(oldPass, newPass, token string) error
+	UpdatePassword(oldPass, newPass, token string) errors.SDKError
+
+	// EnableUser changes the status of the user to enabled.
+	EnableUser(id, token string) errors.SDKError
+
+	// DisableUser changes the status of the user to disabled.
+	DisableUser(id, token string) errors.SDKError
 
 	// CreateThing registers new thing and returns its id.
-	CreateThing(thing Thing, token string) (string, error)
+	CreateThing(thing Thing, token string) (string, errors.SDKError)
 
 	// CreateThings registers new things and returns their ids.
-	CreateThings(things []Thing, token string) ([]Thing, error)
+	CreateThings(things []Thing, token string) ([]Thing, errors.SDKError)
 
 	// Things returns page of things.
-	Things(token string, offset, limit uint64, name string) (ThingsPage, error)
+	Things(pm PageMetadata, token string) (ThingsPage, errors.SDKError)
 
 	// ThingsByChannel returns page of things that are connected or not connected
 	// to specified channel.
-	ThingsByChannel(token, chanID string, offset, limit uint64, connected bool) (ThingsPage, error)
+	ThingsByChannel(chanID string, pm PageMetadata, token string) (ThingsPage, errors.SDKError)
 
 	// Thing returns thing object by id.
-	Thing(id, token string) (Thing, error)
+	Thing(id, token string) (Thing, errors.SDKError)
 
 	// UpdateThing updates existing thing.
-	UpdateThing(thing Thing, token string) error
+	UpdateThing(thing Thing, token string) errors.SDKError
 
 	// DeleteThing removes existing thing.
-	DeleteThing(id, token string) error
+	DeleteThing(id, token string) errors.SDKError
+
+	// IdentifyThing validates thing's key and returns its ID
+	IdentifyThing(key string) (string, errors.SDKError)
 
 	// CreateGroup creates new group and returns its id.
-	CreateGroup(group Group, token string) (string, error)
+	CreateGroup(group Group, token string) (string, errors.SDKError)
 
 	// DeleteGroup deletes users group.
-	DeleteGroup(id, token string) error
+	DeleteGroup(id, token string) errors.SDKError
 
-	// Groups returns page of users groups.
-	Groups(offset, limit uint64, token string) (GroupsPage, error)
+	// Groups returns page of groups.
+	Groups(pm PageMetadata, token string) (GroupsPage, errors.SDKError)
 
 	// Parents returns page of users groups.
-	Parents(id string, offset, limit uint64, token string) (GroupsPage, error)
+	Parents(id string, pm PageMetadata, token string) (GroupsPage, errors.SDKError)
 
 	// Children returns page of users groups.
-	Children(id string, offset, limit uint64, token string) (GroupsPage, error)
+	Children(id string, pm PageMetadata, token string) (GroupsPage, errors.SDKError)
 
 	// Group returns users group object by id.
-	Group(id, token string) (Group, error)
+	Group(id, token string) (Group, errors.SDKError)
 
 	// Assign assigns member of member type (thing or user) to a group.
-	Assign(memberIDs []string, memberType, groupID string, token string) error
+	Assign(memberIDs []string, memberType, groupID, token string) errors.SDKError
 
 	// Unassign removes member from a group.
-	Unassign(token, groupID string, memberIDs ...string) error
+	Unassign(groupID string, memberIDs []string, token string) errors.SDKError
 
 	// Members lists members of a group.
-	Members(groupID, token string, offset, limit uint64) (MembersPage, error)
+	Members(groupID string, pm PageMetadata, token string) (MembersPage, errors.SDKError)
 
 	// Memberships lists groups for user.
-	Memberships(userID, token string, offset, limit uint64) (GroupsPage, error)
+	Memberships(userID string, pm PageMetadata, token string) (GroupsPage, errors.SDKError)
 
 	// UpdateGroup updates existing group.
-	UpdateGroup(group Group, token string) error
+	UpdateGroup(group Group, token string) errors.SDKError
 
 	// Connect bulk connects things to channels specified by id.
-	Connect(conns ConnectionIDs, token string) error
+	Connect(conns ConnectionIDs, token string) errors.SDKError
 
 	// DisconnectThing disconnect thing from specified channel by id.
-	DisconnectThing(thingID, chanID, token string) error
+	DisconnectThing(thingID, chanID, token string) errors.SDKError
 
 	// CreateChannel creates new channel and returns its id.
-	CreateChannel(channel Channel, token string) (string, error)
+	CreateChannel(channel Channel, token string) (string, errors.SDKError)
 
 	// CreateChannels registers new channels and returns their ids.
-	CreateChannels(channels []Channel, token string) ([]Channel, error)
+	CreateChannels(channels []Channel, token string) ([]Channel, errors.SDKError)
 
 	// Channels returns page of channels.
-	Channels(token string, offset, limit uint64, name string) (ChannelsPage, error)
+	Channels(pm PageMetadata, token string) (ChannelsPage, errors.SDKError)
 
 	// ChannelsByThing returns page of channels that are connected or not connected
 	// to specified thing.
-	ChannelsByThing(token, thingID string, offset, limit uint64, connected bool) (ChannelsPage, error)
+	ChannelsByThing(thingID string, pm PageMetadata, token string) (ChannelsPage, errors.SDKError)
 
 	// Channel returns channel data by id.
-	Channel(id, token string) (Channel, error)
+	Channel(id, token string) (Channel, errors.SDKError)
 
 	// UpdateChannel updates existing channel.
-	UpdateChannel(channel Channel, token string) error
+	UpdateChannel(channel Channel, token string) errors.SDKError
 
 	// DeleteChannel removes existing channel.
-	DeleteChannel(id, token string) error
+	DeleteChannel(id, token string) errors.SDKError
 
 	// SendMessage send message to specified channel.
-	SendMessage(chanID, msg, token string) error
+	SendMessage(chanID, msg, key string) errors.SDKError
 
 	// ReadMessages read messages of specified channel.
-	ReadMessages(chanID, token string) (MessagesPage, error)
+	ReadMessages(chanID, token string) (MessagesPage, errors.SDKError)
 
 	// SetContentType sets message content type.
-	SetContentType(ct ContentType) error
+	SetContentType(ct ContentType) errors.SDKError
 
 	// Health returns things service health check.
-	Health() (mainflux.HealthInfo, error)
+	Health() (mainflux.HealthInfo, errors.SDKError)
 
 	// AddBootstrap add bootstrap configuration
-	AddBootstrap(token string, cfg BootstrapConfig) (string, error)
+	AddBootstrap(cfg BootstrapConfig, token string) (string, errors.SDKError)
 
 	// View returns Thing Config with given ID belonging to the user identified by the given token.
-	ViewBootstrap(token, id string) (BootstrapConfig, error)
+	ViewBootstrap(id, token string) (BootstrapConfig, errors.SDKError)
 
 	// Update updates editable fields of the provided Config.
-	UpdateBootstrap(token string, cfg BootstrapConfig) error
+	UpdateBootstrap(cfg BootstrapConfig, token string) errors.SDKError
 
 	// Update boostrap config certificates
-	UpdateBootstrapCerts(token string, id string, clientCert, clientKey, ca string) error
+	UpdateBootstrapCerts(id string, clientCert, clientKey, ca string, token string) errors.SDKError
 
 	// Remove removes Config with specified token that belongs to the user identified by the given token.
-	RemoveBootstrap(token, id string) error
+	RemoveBootstrap(id, token string) errors.SDKError
 
 	// Bootstrap returns Config to the Thing with provided external ID using external key.
-	Bootstrap(externalKey, externalID string) (BootstrapConfig, error)
+	Bootstrap(externalID, externalKey string) (BootstrapConfig, errors.SDKError)
 
 	// Whitelist updates Thing state Config with given ID belonging to the user identified by the given token.
-	Whitelist(token string, cfg BootstrapConfig) error
+	Whitelist(cfg BootstrapConfig, token string) errors.SDKError
 
 	// IssueCert issues a certificate for a thing required for mtls.
-	IssueCert(thingID string, keyBits int, keyType, valid, token string) (Cert, error)
+	IssueCert(thingID string, keyBits int, keyType, valid, token string) (Cert, errors.SDKError)
 
 	// RemoveCert removes a certificate
-	RemoveCert(id, token string) error
+	RemoveCert(id, token string) errors.SDKError
 
 	// RevokeCert revokes certificate with certID for thing with thingID
-	RevokeCert(thingID, certID, token string) error
+	RevokeCert(thingID, certID, token string) errors.SDKError
 
 	// Issue issues a new key, returning its token value alongside.
-	Issue(token string, duration time.Duration) (KeyRes, error)
+	Issue(duration time.Duration, token string) (KeyRes, errors.SDKError)
 
 	// Revoke removes the key with the provided ID that is issued by the user identified by the provided key.
-	Revoke(token, id string) error
+	Revoke(id, token string) errors.SDKError
 
 	// RetrieveKey retrieves data for the key identified by the provided ID, that is issued by the user identified by the provided key.
-	RetrieveKey(token, id string) (retrieveKeyRes, error)
+	RetrieveKey(id, token string) (retrieveKeyRes, errors.SDKError)
 }
 
 type mfSDK struct {
@@ -326,26 +303,78 @@ func NewSDK(conf Config) SDK {
 	}
 }
 
-func (sdk mfSDK) sendRequest(req *http.Request, token, contentType string) (*http.Response, error) {
-	if token != "" {
-		req.Header.Set("Authorization", apiutil.BearerPrefix+token)
+// processRequest creates and send a new HTTP request, and checks for errors in the HTTP response.
+// It then returns the response headers, the response body, and the associated error(s) (if any).
+func (sdk mfSDK) processRequest(method, url, token, contentType string, data []byte, expectedRespCodes ...int) (http.Header, []byte, errors.SDKError) {
+	req, err := http.NewRequest(method, url, bytes.NewReader(data))
+	if err != nil {
+		return make(http.Header), []byte{}, errors.NewSDKError(err)
 	}
 
+	if token != "" {
+		if !strings.Contains(token, apiutil.ThingPrefix) {
+			token = apiutil.BearerPrefix + token
+		}
+		req.Header.Set("Authorization", token)
+	}
 	if contentType != "" {
 		req.Header.Add("Content-Type", contentType)
 	}
 
-	return sdk.client.Do(req)
+	resp, err := sdk.client.Do(req)
+	if err != nil {
+		return make(http.Header), []byte{}, errors.NewSDKError(err)
+	}
+	defer resp.Body.Close()
+
+	sdkerr := errors.CheckError(resp, expectedRespCodes...)
+	if sdkerr != nil {
+		return make(http.Header), []byte{}, sdkerr
+	}
+
+	body, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		return make(http.Header), []byte{}, errors.NewSDKError(err)
+	}
+
+	return resp.Header, body, nil
 }
 
-func (sdk mfSDK) sendThingRequest(req *http.Request, key, contentType string) (*http.Response, error) {
-	if key != "" {
-		req.Header.Set("Authorization", apiutil.ThingPrefix+key)
+func (sdk mfSDK) withQueryParams(baseURL, endpoint string, pm PageMetadata) (string, error) {
+	q, err := pm.query()
+	if err != nil {
+		return "", err
 	}
+	return fmt.Sprintf("%s/%s?%s", baseURL, endpoint, q), nil
+}
 
-	if contentType != "" {
-		req.Header.Add("Content-Type", contentType)
+func (pm PageMetadata) query() (string, error) {
+	q := url.Values{}
+	q.Add("total", strconv.FormatUint(pm.Total, 10))
+	q.Add("offset", strconv.FormatUint(pm.Offset, 10))
+	q.Add("limit", strconv.FormatUint(pm.Limit, 10))
+	q.Add("disconnected", strconv.FormatBool(pm.Disconnected))
+	if pm.Level != 0 {
+		q.Add("level", strconv.FormatUint(pm.Level, 10))
 	}
-
-	return sdk.client.Do(req)
+	if pm.Email != "" {
+		q.Add("email", pm.Email)
+	}
+	if pm.Name != "" {
+		q.Add("name", pm.Name)
+	}
+	if pm.Type != "" {
+		q.Add("type", pm.Type)
+	}
+	if pm.Status != "" {
+		q.Add("status", pm.Status)
+	}
+	if pm.Metadata != nil {
+		md, err := json.Marshal(pm.Metadata)
+		if err != nil {
+			return "", errors.NewSDKError(err)
+		}
+		q.Add("metadata", string(md))
+	}
+	return q.Encode(), nil
 }

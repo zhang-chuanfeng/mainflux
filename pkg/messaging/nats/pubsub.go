@@ -17,24 +17,14 @@ import (
 
 const chansPrefix = "channels"
 
-// SubjectAllChannels represents subject to subscribe for all the channels.
-const SubjectAllChannels = "channels.>"
-
+// Publisher and Subscriber errors.
 var (
-	errAlreadySubscribed = errors.New("already subscribed to topic")
-	errNotSubscribed     = errors.New("not subscribed")
-	errEmptyTopic        = errors.New("empty topic")
-	errEmptyID           = errors.New("empty ID")
+	ErrNotSubscribed = errors.New("not subscribed")
+	ErrEmptyTopic    = errors.New("empty topic")
+	ErrEmptyID       = errors.New("empty id")
 )
 
 var _ messaging.PubSub = (*pubsub)(nil)
-
-// PubSub wraps messaging Publisher exposing
-// Close() method for NATS connection.
-type PubSub interface {
-	messaging.PubSub
-	Close()
-}
 
 type subscription struct {
 	*broker.Subscription
@@ -42,7 +32,7 @@ type subscription struct {
 }
 
 type pubsub struct {
-	conn          *broker.Conn
+	publisher
 	logger        log.Logger
 	mu            sync.Mutex
 	queue         string
@@ -56,13 +46,16 @@ type pubsub struct {
 // from ordinary subscribe. For more information, please take a look
 // here: https://docs.nats.io/developing-with-nats/receiving/queues.
 // If the queue is empty, Subscribe will be used.
-func NewPubSub(url, queue string, logger log.Logger) (PubSub, error) {
-	conn, err := broker.Connect(url)
+func NewPubSub(url, queue string, logger log.Logger) (messaging.PubSub, error) {
+	conn, err := broker.Connect(url, broker.MaxReconnects(maxReconnects))
 	if err != nil {
 		return nil, err
 	}
+
 	ret := &pubsub{
-		conn:          conn,
+		publisher: publisher{
+			conn: conn,
+		},
 		queue:         queue,
 		logger:        logger,
 		subscriptions: make(map[string]map[string]subscription),
@@ -70,44 +63,37 @@ func NewPubSub(url, queue string, logger log.Logger) (PubSub, error) {
 	return ret, nil
 }
 
-func (ps *pubsub) Publish(topic string, msg messaging.Message) error {
-	data, err := proto.Marshal(&msg)
-	if err != nil {
-		return err
-	}
-
-	subject := fmt.Sprintf("%s.%s", chansPrefix, topic)
-	if msg.Subtopic != "" {
-		subject = fmt.Sprintf("%s.%s", subject, msg.Subtopic)
-	}
-	if err := ps.conn.Publish(subject, data); err != nil {
-		return err
-	}
-
-	return nil
-}
-
 func (ps *pubsub) Subscribe(id, topic string, handler messaging.MessageHandler) error {
 	if id == "" {
-		return errEmptyID
+		return ErrEmptyID
 	}
 	if topic == "" {
-		return errEmptyTopic
+		return ErrEmptyTopic
 	}
+
 	ps.mu.Lock()
-	defer ps.mu.Unlock()
 	// Check topic
 	s, ok := ps.subscriptions[topic]
-	switch ok {
-	case true:
-		// Check topic ID
+	if ok {
+		// Check client ID
 		if _, ok := s[id]; ok {
-			return errAlreadySubscribed
+			// Unlocking, so that Unsubscribe() can access ps.subscriptions
+			ps.mu.Unlock()
+			if err := ps.Unsubscribe(id, topic); err != nil {
+				return err
+			}
+
+			ps.mu.Lock()
+			// value of s can be changed while ps.mu is unlocked
+			s = ps.subscriptions[topic]
 		}
-	default:
+	}
+	defer ps.mu.Unlock()
+	if s == nil {
 		s = make(map[string]subscription)
 		ps.subscriptions[topic] = s
 	}
+
 	nh := ps.natsHandler(handler)
 
 	if ps.queue != "" {
@@ -129,27 +115,28 @@ func (ps *pubsub) Subscribe(id, topic string, handler messaging.MessageHandler) 
 		Subscription: sub,
 		cancel:       handler.Cancel,
 	}
+
 	return nil
 }
 
 func (ps *pubsub) Unsubscribe(id, topic string) error {
 	if id == "" {
-		return errEmptyID
+		return ErrEmptyID
 	}
 	if topic == "" {
-		return errEmptyTopic
+		return ErrEmptyTopic
 	}
 	ps.mu.Lock()
 	defer ps.mu.Unlock()
 	// Check topic
 	s, ok := ps.subscriptions[topic]
 	if !ok {
-		return errNotSubscribed
+		return ErrNotSubscribed
 	}
 	// Check topic ID
 	current, ok := s[id]
 	if !ok {
-		return errNotSubscribed
+		return ErrNotSubscribed
 	}
 	if current.cancel != nil {
 		if err := current.cancel(); err != nil {
@@ -159,15 +146,12 @@ func (ps *pubsub) Unsubscribe(id, topic string) error {
 	if err := current.Unsubscribe(); err != nil {
 		return err
 	}
+
 	delete(s, id)
 	if len(s) == 0 {
 		delete(ps.subscriptions, topic)
 	}
 	return nil
-}
-
-func (ps *pubsub) Close() {
-	ps.conn.Close()
 }
 
 func (ps *pubsub) natsHandler(h messaging.MessageHandler) broker.MsgHandler {

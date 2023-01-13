@@ -84,7 +84,7 @@ func main() {
 	rootCmd.PersistentFlags().StringVarP(
 		&sdkConf.CertsURL,
 		"certs-url",
-		"e",
+		"s",
 		sdkConf.CertsURL,
 		"Certs service URL",
 	)
@@ -111,6 +111,14 @@ func main() {
 		"p",
 		sdkConf.HTTPAdapterURL,
 		"HTTP adapter URL",
+	)
+
+	rootCmd.PersistentFlags().StringVarP(
+		&sdkConf.ReaderURL,
+		"reader-url",
+		"R",
+		sdkConf.ReaderURL,
+		"Reader URL",
 	)
 
 	rootCmd.PersistentFlags().StringVarP(
@@ -168,6 +176,30 @@ func main() {
 		"n",
 		"",
 		"Name query parameter",
+	)
+
+	rootCmd.PersistentFlags().StringVarP(
+		&cli.Email,
+		"email",
+		"e",
+		"",
+		"User email query parameter",
+	)
+
+	rootCmd.PersistentFlags().StringVarP(
+		&cli.Metadata,
+		"metadata",
+		"m",
+		"",
+		"Metadata query parameter",
+	)
+
+	rootCmd.PersistentFlags().StringVarP(
+		&cli.Status,
+		"status",
+		"S",
+		"",
+		"User status query parameter",
 	)
 
 	if err := rootCmd.Execute(); err != nil {

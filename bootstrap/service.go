@@ -38,7 +38,6 @@ var (
 	errRemoveChannel      = errors.New("failed to remove channel")
 	errCreateThing        = errors.New("failed to create thing")
 	errDisconnectThing    = errors.New("failed to disconnect thing")
-	errThingNotFound      = errors.New("thing not found")
 	errCheckChannels      = errors.New("failed to check if channels exists")
 	errConnectionChannels = errors.New("failed to check channels connections")
 	errUpdateCert         = errors.New("failed to update cert")
@@ -107,7 +106,6 @@ type bootstrapService struct {
 	configs ConfigRepository
 	sdk     mfsdk.SDK
 	encKey  []byte
-	reader  ConfigReader
 }
 
 // New returns new Bootstrap service.
@@ -232,7 +230,7 @@ func (bs bootstrapService) UpdateConnections(ctx context.Context, token, id stri
 
 	for _, c := range disconnect {
 		if err := bs.sdk.DisconnectThing(id, c, token); err != nil {
-			if errors.Contains(err, mfsdk.ErrFailedDisconnect) {
+			if errors.Contains(err, errors.ErrNotFound) {
 				continue
 			}
 			return ErrThings
@@ -245,9 +243,6 @@ func (bs bootstrapService) UpdateConnections(ctx context.Context, token, id stri
 			ThingIDs:   []string{id},
 		}
 		if err := bs.sdk.Connect(conIDs, token); err != nil {
-			if errors.Contains(err, mfsdk.ErrFailedConnect) {
-				return errors.ErrMalformedEntity
-			}
 			return ErrThings
 		}
 	}
@@ -325,7 +320,7 @@ func (bs bootstrapService) ChangeState(ctx context.Context, token, id string, st
 	case Inactive:
 		for _, c := range cfg.MFChannels {
 			if err := bs.sdk.DisconnectThing(cfg.MFThing, c.ID, token); err != nil {
-				if errors.Contains(err, mfsdk.ErrFailedDisconnect) {
+				if errors.Contains(err, errors.ErrNotFound) {
 					continue
 				}
 				return ErrThings
@@ -392,10 +387,6 @@ func (bs bootstrapService) thing(token, id string) (mfsdk.Thing, error) {
 
 	thing, err := bs.sdk.Thing(thingID, token)
 	if err != nil {
-		if errors.Contains(err, mfsdk.ErrFailedFetch) {
-			return mfsdk.Thing{}, errors.Wrap(errThingNotFound, errors.ErrNotFound)
-		}
-
 		if id != "" {
 			if errT := bs.sdk.DeleteThing(thingID, token); errT != nil {
 				err = errors.Wrap(err, errT)
@@ -415,7 +406,7 @@ func (bs bootstrapService) connectionChannels(channels, existing []string, token
 	}
 
 	for _, ch := range existing {
-		if add[ch] == true {
+		if add[ch] {
 			delete(add, ch)
 		}
 	}
@@ -442,8 +433,7 @@ func (bs bootstrapService) connectionChannels(channels, existing []string, token
 // 2) IDs of Channels to be removed
 // 3) IDs of common Channels for these two configs
 func (bs bootstrapService) updateList(cfg Config, connections []string) (add, remove []string) {
-	var disconnect map[string]bool
-	disconnect = make(map[string]bool, len(cfg.MFChannels))
+	disconnect := make(map[string]bool, len(cfg.MFChannels))
 	for _, c := range cfg.MFChannels {
 		disconnect[c.ID] = true
 	}

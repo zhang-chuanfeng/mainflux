@@ -6,25 +6,18 @@ package postgres
 import (
 	"context"
 	"database/sql"
-	"database/sql/driver"
 	"encoding/json"
 	"fmt"
 	"strings"
 
-	"github.com/lib/pq"
+	"github.com/jackc/pgerrcode"
+	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/mainflux/mainflux/auth"
 	"github.com/mainflux/mainflux/pkg/errors"
 	"github.com/mainflux/mainflux/users"
 )
 
-const (
-	errInvalid    = "invalid_text_representation"
-	errTruncation = "string_data_right_truncation"
-)
-
 var _ users.UserRepository = (*userRepository)(nil)
-
-const errDuplicate = "unique_violation"
 
 type userRepository struct {
 	db Database
@@ -39,7 +32,7 @@ func NewUserRepo(db Database) users.UserRepository {
 }
 
 func (ur userRepository) Save(ctx context.Context, user users.User) (string, error) {
-	q := `INSERT INTO users (email, password, id, metadata) VALUES (:email, :password, :id, :metadata) RETURNING id`
+	q := `INSERT INTO users (email, password, id, metadata, status) VALUES (:email, :password, :id, :metadata, :status) RETURNING id`
 	if user.ID == "" || user.Email == "" {
 		return "", errors.ErrMalformedEntity
 	}
@@ -50,13 +43,14 @@ func (ur userRepository) Save(ctx context.Context, user users.User) (string, err
 	}
 
 	row, err := ur.db.NamedQueryContext(ctx, q, dbu)
+
 	if err != nil {
-		pqErr, ok := err.(*pq.Error)
+		pgErr, ok := err.(*pgconn.PgError)
 		if ok {
-			switch pqErr.Code.Name() {
-			case errInvalid, errTruncation:
+			switch pgErr.Code {
+			case pgerrcode.InvalidTextRepresentation:
 				return "", errors.Wrap(errors.ErrMalformedEntity, err)
-			case errDuplicate:
+			case pgerrcode.UniqueViolation:
 				return "", errors.Wrap(errors.ErrConflict, err)
 			}
 		}
@@ -73,7 +67,7 @@ func (ur userRepository) Save(ctx context.Context, user users.User) (string, err
 }
 
 func (ur userRepository) Update(ctx context.Context, user users.User) error {
-	q := `UPDATE users SET(email, password, metadata) VALUES (:email, :password, :metadata) WHERE email = :email`
+	q := `UPDATE users SET(email, password, metadata, status) VALUES (:email, :password, :metadata, :status) WHERE email = :email;`
 
 	dbu, err := toDBUser(user)
 	if err != nil {
@@ -88,7 +82,7 @@ func (ur userRepository) Update(ctx context.Context, user users.User) error {
 }
 
 func (ur userRepository) UpdateUser(ctx context.Context, user users.User) error {
-	q := `UPDATE users SET metadata = :metadata WHERE email = :email`
+	q := `UPDATE users SET metadata = :metadata WHERE email = :email AND status = 'enabled'`
 
 	dbu, err := toDBUser(user)
 	if err != nil {
@@ -103,7 +97,7 @@ func (ur userRepository) UpdateUser(ctx context.Context, user users.User) error 
 }
 
 func (ur userRepository) RetrieveByEmail(ctx context.Context, email string) (users.User, error) {
-	q := `SELECT id, password, metadata FROM users WHERE email = $1`
+	q := `SELECT id, password, metadata FROM users WHERE email = $1 AND status = 'enabled'`
 
 	dbu := dbUser{
 		Email: email,
@@ -138,15 +132,19 @@ func (ur userRepository) RetrieveByID(ctx context.Context, id string) (users.Use
 	return toUser(dbu)
 }
 
-func (ur userRepository) RetrieveAll(ctx context.Context, offset, limit uint64, userIDs []string, email string, um users.Metadata) (users.UserPage, error) {
-	eq, ep, err := createEmailQuery("", email)
+func (ur userRepository) RetrieveAll(ctx context.Context, userIDs []string, pm users.PageMetadata) (users.UserPage, error) {
+	eq, ep, err := createEmailQuery("", pm.Email)
 	if err != nil {
 		return users.UserPage{}, errors.Wrap(errors.ErrViewEntity, err)
 	}
 
-	mq, mp, err := createMetadataQuery("", um)
+	mq, mp, err := createMetadataQuery("", pm.Metadata)
 	if err != nil {
 		return users.UserPage{}, errors.Wrap(errors.ErrViewEntity, err)
+	}
+	aq := fmt.Sprintf("status = '%s'", pm.Status)
+	if pm.Status == users.AllStatusKey {
+		aq = ""
 	}
 
 	var query []string
@@ -156,6 +154,9 @@ func (ur userRepository) RetrieveAll(ctx context.Context, offset, limit uint64, 
 	}
 	if mq != "" {
 		query = append(query, mq)
+	}
+	if aq != "" {
+		query = append(query, aq)
 	}
 
 	if len(userIDs) > 0 {
@@ -167,8 +168,8 @@ func (ur userRepository) RetrieveAll(ctx context.Context, offset, limit uint64, 
 
 	q := fmt.Sprintf(`SELECT id, email, metadata FROM users %s ORDER BY email LIMIT :limit OFFSET :offset;`, emq)
 	params := map[string]interface{}{
-		"limit":    limit,
-		"offset":   offset,
+		"limit":    pm.Limit,
+		"offset":   pm.Offset,
 		"email":    ep,
 		"metadata": mp,
 	}
@@ -205,8 +206,8 @@ func (ur userRepository) RetrieveAll(ctx context.Context, offset, limit uint64, 
 		Users: items,
 		PageMetadata: users.PageMetadata{
 			Total:  total,
-			Offset: offset,
-			Limit:  limit,
+			Offset: pm.Offset,
+			Limit:  pm.Limit,
 		},
 	}
 
@@ -214,7 +215,7 @@ func (ur userRepository) RetrieveAll(ctx context.Context, offset, limit uint64, 
 }
 
 func (ur userRepository) UpdatePassword(ctx context.Context, email, password string) error {
-	q := `UPDATE users SET password = :password WHERE email = :email`
+	q := `UPDATE users SET password = :password WHERE status = 'enabled' AND email = :email`
 
 	db := dbUser{
 		Email:    email,
@@ -228,38 +229,18 @@ func (ur userRepository) UpdatePassword(ctx context.Context, email, password str
 	return nil
 }
 
-// dbMetadata type for handling metadata properly in database/sql
-type dbMetadata map[string]interface{}
+func (ur userRepository) ChangeStatus(ctx context.Context, id, status string) error {
+	q := fmt.Sprintf(`UPDATE users SET status = '%s' WHERE id = :id`, status)
 
-// Scan - Implement the database/sql scanner interface
-func (m *dbMetadata) Scan(value interface{}) error {
-	if value == nil {
-		return nil
+	dbu := dbUser{
+		ID: id,
 	}
 
-	b, ok := value.([]byte)
-	if !ok {
-		return errors.ErrScanMetadata
-	}
-
-	if err := json.Unmarshal(b, m); err != nil {
-		return err
+	if _, err := ur.db.NamedExecContext(ctx, q, dbu); err != nil {
+		return errors.Wrap(errors.ErrUpdateEntity, err)
 	}
 
 	return nil
-}
-
-// Value Implements valuer
-func (m dbMetadata) Value() (driver.Value, error) {
-	if len(m) == 0 {
-		return nil, nil
-	}
-
-	b, err := json.Marshal(m)
-	if err != nil {
-		return nil, err
-	}
-	return b, err
 }
 
 type dbUser struct {
@@ -268,6 +249,7 @@ type dbUser struct {
 	Password string       `db:"password"`
 	Metadata []byte       `db:"metadata"`
 	Groups   []auth.Group `db:"groups"`
+	Status   string       `db:"status"`
 }
 
 func toDBUser(u users.User) (dbUser, error) {
@@ -285,6 +267,7 @@ func toDBUser(u users.User) (dbUser, error) {
 		Email:    u.Email,
 		Password: u.Password,
 		Metadata: data,
+		Status:   u.Status,
 	}, nil
 }
 
@@ -316,6 +299,7 @@ func toUser(dbu dbUser) (users.User, error) {
 		Email:    dbu.Email,
 		Password: dbu.Password,
 		Metadata: metadata,
+		Status:   dbu.Status,
 	}, nil
 }
 

@@ -11,6 +11,8 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/mainflux/mainflux/internal/apiutil"
+	"github.com/mainflux/mainflux/pkg/errors"
 	sdk "github.com/mainflux/mainflux/pkg/sdk/go"
 )
 
@@ -41,7 +43,7 @@ func TestCreateChannel(t *testing.T) {
 		desc    string
 		channel sdk.Channel
 		token   string
-		err     error
+		err     errors.SDKError
 		empty   bool
 	}{
 		{
@@ -55,14 +57,14 @@ func TestCreateChannel(t *testing.T) {
 			desc:    "create new channel with empty token",
 			channel: ch1,
 			token:   "",
-			err:     createError(sdk.ErrFailedCreation, http.StatusUnauthorized),
+			err:     errors.NewSDKErrorWithStatus(apiutil.ErrBearerToken, http.StatusUnauthorized),
 			empty:   true,
 		},
 		{
 			desc:    "create new channel with invalid token",
 			channel: ch1,
 			token:   wrongValue,
-			err:     createError(sdk.ErrFailedCreation, http.StatusUnauthorized),
+			err:     errors.NewSDKErrorWithStatus(errors.ErrAuthentication, http.StatusUnauthorized),
 			empty:   true,
 		},
 		{
@@ -83,7 +85,7 @@ func TestCreateChannel(t *testing.T) {
 			desc:    "create a new channel with wrong external UUID",
 			channel: chWrongExtID,
 			token:   token,
-			err:     createError(sdk.ErrFailedCreation, http.StatusBadRequest),
+			err:     errors.NewSDKErrorWithStatus(apiutil.ErrInvalidIDFormat, http.StatusBadRequest),
 			empty:   true,
 		},
 	}
@@ -117,7 +119,7 @@ func TestCreateChannels(t *testing.T) {
 		desc     string
 		channels []sdk.Channel
 		token    string
-		err      error
+		err      errors.SDKError
 		res      []sdk.Channel
 	}{
 		{
@@ -131,21 +133,21 @@ func TestCreateChannels(t *testing.T) {
 			desc:     "create new channels with empty channels",
 			channels: []sdk.Channel{},
 			token:    token,
-			err:      createError(sdk.ErrFailedCreation, http.StatusBadRequest),
+			err:      errors.NewSDKErrorWithStatus(apiutil.ErrEmptyList, http.StatusBadRequest),
 			res:      []sdk.Channel{},
 		},
 		{
 			desc:     "create new channels with empty token",
 			channels: channels,
 			token:    "",
-			err:      createError(sdk.ErrFailedCreation, http.StatusUnauthorized),
+			err:      errors.NewSDKErrorWithStatus(apiutil.ErrBearerToken, http.StatusUnauthorized),
 			res:      []sdk.Channel{},
 		},
 		{
 			desc:     "create new channels with invalid token",
 			channels: channels,
 			token:    wrongValue,
-			err:      createError(sdk.ErrFailedCreation, http.StatusUnauthorized),
+			err:      errors.NewSDKErrorWithStatus(errors.ErrAuthentication, http.StatusUnauthorized),
 			res:      []sdk.Channel{},
 		},
 	}
@@ -177,7 +179,7 @@ func TestChannel(t *testing.T) {
 		desc     string
 		chanID   string
 		token    string
-		err      error
+		err      errors.SDKError
 		response sdk.Channel
 	}{
 		{
@@ -191,14 +193,14 @@ func TestChannel(t *testing.T) {
 			desc:     "get non-existent channel",
 			chanID:   "43",
 			token:    token,
-			err:      createError(sdk.ErrFailedFetch, http.StatusNotFound),
+			err:      errors.NewSDKErrorWithStatus(errors.ErrNotFound, http.StatusNotFound),
 			response: sdk.Channel{},
 		},
 		{
 			desc:     "get channel with invalid token",
 			chanID:   id,
 			token:    "",
-			err:      createError(sdk.ErrFailedFetch, http.StatusUnauthorized),
+			err:      errors.NewSDKErrorWithStatus(apiutil.ErrBearerToken, http.StatusUnauthorized),
 			response: sdk.Channel{},
 		},
 	}
@@ -237,60 +239,75 @@ func TestChannels(t *testing.T) {
 		offset   uint64
 		limit    uint64
 		name     string
-		err      error
+		err      errors.SDKError
 		response []sdk.Channel
+		metadata map[string]interface{}
 	}{
 		{
 			desc:     "get a list of channels",
 			token:    token,
-			offset:   0,
-			limit:    5,
+			offset:   offset,
+			limit:    limit,
 			err:      nil,
-			response: channels[0:5],
+			response: channels[0:limit],
+			metadata: make(map[string]interface{}),
 		},
 		{
 			desc:     "get a list of channels with invalid token",
 			token:    wrongValue,
-			offset:   0,
-			limit:    5,
-			err:      createError(sdk.ErrFailedFetch, http.StatusUnauthorized),
+			offset:   offset,
+			limit:    limit,
+			err:      errors.NewSDKErrorWithStatus(errors.ErrAuthentication, http.StatusUnauthorized),
 			response: nil,
+			metadata: make(map[string]interface{}),
 		},
 		{
 			desc:     "get a list of channels with empty token",
 			token:    "",
-			offset:   0,
-			limit:    5,
-			err:      createError(sdk.ErrFailedFetch, http.StatusUnauthorized),
+			offset:   offset,
+			limit:    limit,
+			err:      errors.NewSDKErrorWithStatus(apiutil.ErrBearerToken, http.StatusUnauthorized),
 			response: nil,
+			metadata: make(map[string]interface{}),
 		},
 		{
 			desc:     "get a list of channels without limit, default 10",
 			token:    token,
-			offset:   0,
+			offset:   offset,
 			limit:    0,
-			err:      createError(sdk.ErrFailedFetch, http.StatusBadRequest),
+			err:      errors.NewSDKErrorWithStatus(apiutil.ErrLimitSize, http.StatusBadRequest),
 			response: nil,
+			metadata: make(map[string]interface{}),
 		},
 		{
 			desc:     "get a list of channels with limit greater than max",
 			token:    token,
-			offset:   0,
+			offset:   offset,
 			limit:    110,
-			err:      createError(sdk.ErrFailedFetch, http.StatusBadRequest),
+			err:      errors.NewSDKErrorWithStatus(apiutil.ErrLimitSize, http.StatusBadRequest),
 			response: nil,
+			metadata: make(map[string]interface{}),
 		},
 		{
 			desc:     "get a list of channels with offset greater than max",
 			token:    token,
 			offset:   110,
-			limit:    5,
+			limit:    limit,
 			err:      nil,
 			response: []sdk.Channel{},
+			metadata: make(map[string]interface{}),
 		},
 	}
 	for _, tc := range cases {
-		page, err := mainfluxSDK.Channels(tc.token, tc.offset, tc.limit, tc.name)
+		filter := sdk.PageMetadata{
+			Name:     tc.name,
+			Total:    total,
+			Offset:   uint64(tc.offset),
+			Limit:    uint64(tc.limit),
+			Metadata: tc.metadata,
+		}
+
+		page, err := mainfluxSDK.Channels(filter, tc.token)
 		assert.Equal(t, tc.err, err, fmt.Sprintf("%s: expected error %s, got %s", tc.desc, tc.err, err))
 		assert.Equal(t, tc.response, page.Channels, fmt.Sprintf("%s: expected response channel %s, got %s", tc.desc, tc.response, page.Channels))
 	}
@@ -343,52 +360,52 @@ func TestChannelsByThing(t *testing.T) {
 		offset       uint64
 		limit        uint64
 		disconnected bool
-		err          error
+		err          errors.SDKError
 		response     []sdk.Channel
 	}{
 		{
 			desc:     "get a list of channels by thing",
 			thing:    tid,
 			token:    token,
-			offset:   0,
-			limit:    5,
+			offset:   offset,
+			limit:    limit,
 			err:      nil,
-			response: channels[0:5],
+			response: channels[0:limit],
 		},
 		{
 			desc:     "get a list of channels by thing with invalid token",
 			thing:    tid,
 			token:    wrongValue,
-			offset:   0,
-			limit:    5,
-			err:      createError(sdk.ErrFailedFetch, http.StatusUnauthorized),
+			offset:   offset,
+			limit:    limit,
+			err:      errors.NewSDKErrorWithStatus(errors.ErrAuthentication, http.StatusUnauthorized),
 			response: nil,
 		},
 		{
 			desc:     "get a list of channels by thing with empty token",
 			thing:    tid,
 			token:    "",
-			offset:   0,
-			limit:    5,
-			err:      createError(sdk.ErrFailedFetch, http.StatusUnauthorized),
+			offset:   offset,
+			limit:    limit,
+			err:      errors.NewSDKErrorWithStatus(apiutil.ErrBearerToken, http.StatusUnauthorized),
 			response: nil,
 		},
 		{
 			desc:     "get a list of channels by thing with zero limit",
 			thing:    tid,
 			token:    token,
-			offset:   0,
+			offset:   offset,
 			limit:    0,
-			err:      createError(sdk.ErrFailedFetch, http.StatusBadRequest),
+			err:      errors.NewSDKErrorWithStatus(apiutil.ErrLimitSize, http.StatusBadRequest),
 			response: nil,
 		},
 		{
 			desc:     "get a list of channels by thing with limit greater than max",
 			thing:    tid,
 			token:    token,
-			offset:   0,
+			offset:   offset,
 			limit:    110,
-			err:      createError(sdk.ErrFailedFetch, http.StatusBadRequest),
+			err:      errors.NewSDKErrorWithStatus(apiutil.ErrLimitSize, http.StatusBadRequest),
 			response: nil,
 		},
 		{
@@ -396,7 +413,7 @@ func TestChannelsByThing(t *testing.T) {
 			thing:    tid,
 			token:    token,
 			offset:   110,
-			limit:    5,
+			limit:    limit,
 			err:      nil,
 			response: []sdk.Channel{},
 		},
@@ -404,16 +421,16 @@ func TestChannelsByThing(t *testing.T) {
 			desc:     "get a list of channels by thing with invalid args (zero limit) and invalid token",
 			thing:    tid,
 			token:    wrongValue,
-			offset:   0,
+			offset:   offset,
 			limit:    0,
-			err:      createError(sdk.ErrFailedFetch, http.StatusBadRequest),
+			err:      errors.NewSDKErrorWithStatus(apiutil.ErrLimitSize, http.StatusBadRequest),
 			response: nil,
 		},
 		{
 			desc:         "get a list of not connected channels by thing",
 			thing:        tid,
 			token:        token,
-			offset:       0,
+			offset:       offset,
 			limit:        100,
 			disconnected: true,
 			err:          nil,
@@ -422,7 +439,12 @@ func TestChannelsByThing(t *testing.T) {
 	}
 
 	for _, tc := range cases {
-		page, err := mainfluxSDK.ChannelsByThing(tc.token, tc.thing, tc.offset, tc.limit, tc.disconnected)
+		pm := sdk.PageMetadata{
+			Offset:       tc.offset,
+			Limit:        tc.limit,
+			Disconnected: tc.disconnected,
+		}
+		page, err := mainfluxSDK.ChannelsByThing(tc.thing, pm, tc.token)
 		assert.Equal(t, tc.err, err, fmt.Sprintf("%s: expected error %s, got %s", tc.desc, tc.err, err))
 		assert.Equal(t, tc.response, page.Channels, fmt.Sprintf("%s: expected response channel %s, got %s", tc.desc, tc.response, page.Channels))
 	}
@@ -446,7 +468,7 @@ func TestUpdateChannel(t *testing.T) {
 		desc    string
 		channel sdk.Channel
 		token   string
-		err     error
+		err     errors.SDKError
 	}{
 		{
 			desc:    "update existing channel",
@@ -458,25 +480,25 @@ func TestUpdateChannel(t *testing.T) {
 			desc:    "update non-existing channel",
 			channel: sdk.Channel{ID: "0", Name: "test2"},
 			token:   token,
-			err:     createError(sdk.ErrFailedUpdate, http.StatusNotFound),
+			err:     errors.NewSDKErrorWithStatus(errors.ErrNotFound, http.StatusNotFound),
 		},
 		{
 			desc:    "update channel with invalid id",
 			channel: sdk.Channel{ID: "", Name: "test2"},
 			token:   token,
-			err:     createError(sdk.ErrFailedUpdate, http.StatusBadRequest),
+			err:     errors.NewSDKErrorWithStatus(apiutil.ErrMissingID, http.StatusBadRequest),
 		},
 		{
 			desc:    "update channel with invalid token",
 			channel: sdk.Channel{ID: id, Name: "test2"},
 			token:   wrongValue,
-			err:     createError(sdk.ErrFailedUpdate, http.StatusUnauthorized),
+			err:     errors.NewSDKErrorWithStatus(errors.ErrAuthentication, http.StatusUnauthorized),
 		},
 		{
 			desc:    "update channel with empty token",
 			channel: sdk.Channel{ID: id, Name: "test2"},
 			token:   "",
-			err:     createError(sdk.ErrFailedUpdate, http.StatusUnauthorized),
+			err:     errors.NewSDKErrorWithStatus(apiutil.ErrBearerToken, http.StatusUnauthorized),
 		},
 	}
 
@@ -504,13 +526,13 @@ func TestDeleteChannel(t *testing.T) {
 		desc   string
 		chanID string
 		token  string
-		err    error
+		err    errors.SDKError
 	}{
 		{
 			desc:   "delete channel with invalid token",
 			chanID: id,
 			token:  wrongValue,
-			err:    createError(sdk.ErrFailedRemoval, http.StatusUnauthorized),
+			err:    errors.NewSDKErrorWithStatus(errors.ErrAuthentication, http.StatusUnauthorized),
 		},
 		{
 			desc:   "delete non-existing channel",
@@ -522,13 +544,13 @@ func TestDeleteChannel(t *testing.T) {
 			desc:   "delete channel with invalid id",
 			chanID: "",
 			token:  token,
-			err:    createError(sdk.ErrFailedRemoval, http.StatusBadRequest),
+			err:    errors.NewSDKErrorWithStatus(apiutil.ErrMissingID, http.StatusBadRequest),
 		},
 		{
 			desc:   "delete channel with empty token",
 			chanID: id,
 			token:  "",
-			err:    createError(sdk.ErrFailedRemoval, http.StatusUnauthorized),
+			err:    errors.NewSDKErrorWithStatus(apiutil.ErrBearerToken, http.StatusUnauthorized),
 		},
 		{
 			desc:   "delete existing channel",

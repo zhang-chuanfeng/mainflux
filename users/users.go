@@ -24,11 +24,11 @@ const (
 
 var (
 	userRegexp    = regexp.MustCompile("^[a-zA-Z0-9!#$%&'*+/=?^_`{|}~.-]+$")
-	hostRegexp    = regexp.MustCompile("^[^\\s]+\\.[^\\s]+$")
+	hostRegexp    = regexp.MustCompile(`^[^\s]+\.[^\s]+$`)
 	userDotRegexp = regexp.MustCompile("(^[.]{1})|([.]{1}$)|([.]{2,})")
 )
 
-// Metadata to be used for mainflux thing or channel for customized
+// Metadata to be used for Mainflux thing or channel for customized
 // describing of particular thing or channel.
 type Metadata map[string]interface{}
 
@@ -39,6 +39,7 @@ type User struct {
 	Email    string
 	Password string
 	Metadata Metadata
+	Status   string
 }
 
 // Validate returns an error if user representation is invalid.
@@ -65,10 +66,13 @@ type UserRepository interface {
 	RetrieveByID(ctx context.Context, id string) (User, error)
 
 	// RetrieveAll retrieves all users for given array of userIDs.
-	RetrieveAll(ctx context.Context, offset, limit uint64, userIDs []string, email string, m Metadata) (UserPage, error)
+	RetrieveAll(ctx context.Context, userIDs []string, pm PageMetadata) (UserPage, error)
 
 	// UpdatePassword updates password for user with given email
 	UpdatePassword(ctx context.Context, email, password string) error
+
+	// ChangeStatus changes users status to enabled or disabled
+	ChangeStatus(ctx context.Context, id, status string) error
 }
 
 func isEmail(email string) bool {

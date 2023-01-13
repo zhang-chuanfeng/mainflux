@@ -14,6 +14,7 @@ import (
 	"github.com/mainflux/mainflux/pkg/uuid"
 	"github.com/mainflux/mainflux/readers"
 	preader "github.com/mainflux/mainflux/readers/postgres"
+
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -29,7 +30,6 @@ const (
 	format1     = "format1"
 	format2     = "format2"
 	wrongID     = "0"
-	wrongValue  = "wrong-value"
 )
 
 var (
